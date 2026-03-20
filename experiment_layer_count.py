@@ -10,6 +10,8 @@ from utils import (
     brute_force
 )
 from rqaoa import solve_rqaoa
+from tqdm.auto import tqdm
+
 cudaq.set_target("nvidia", option='mgpu')
 
 shots = 2000
@@ -26,10 +28,12 @@ for n in range(3, 21):
         ground_truth_max_cut_value, _, _ = brute_force(G)
         brute_force_results[seed] = ground_truth_max_cut_value
     
-    for seed in range(50):
+
+    for seed in tqdm(range(50)):
         G_for_bf = generate_graph(n, (n + 1) // 2, seed)
         thread = threading.Thread(target=run_brute_force, args=(G_for_bf, seed))
         threads.append(thread)
+        thread.start()
         
         for layer_count in [1, 2, 3]:
             cudaq.set_random_seed(seed)
@@ -47,22 +51,17 @@ for n in range(3, 21):
 
             max_cut_value, _ = process_max_cut(G)
             rqaoa_results[(seed, layer_count)] = (max_cut_value, losses)
-    
-    for t in threads:
-        t.start()
 
-    for t in threads:
         t.join()
 
-    for seed in range(10):
         ground_truth_max_cut_value = brute_force_results[seed]
         for layer_count in [1, 2, 3]:
             max_cut_value, losses = rqaoa_results[(seed, layer_count)]
             data.append((n, seed, ground_truth_max_cut_value, layer_count, max_cut_value, losses))
-            print(f"run #{seed} (p={layer_count}): {max_cut_value} / {ground_truth_max_cut_value}")
-            if ground_truth_max_cut_value > 0:
-                print(f"performance = {max_cut_value / ground_truth_max_cut_value:.4f}")
-            else:
-                print(f"performance = N/A")
+            # print(f"run #{seed} (p={layer_count}): {max_cut_value} / {ground_truth_max_cut_value}")
+            # if ground_truth_max_cut_value > 0:
+            #     print(f"performance = {max_cut_value / ground_truth_max_cut_value:.4f}")
+            # else:
+            #     print(f"performance = N/A")
 
 pd.DataFrame(data, columns=['n_nodes', 'seed', 'ground_truth', 'layer_count', 'rqaoa', 'losses']).to_csv('experiment_layer_count.csv', index=False)
