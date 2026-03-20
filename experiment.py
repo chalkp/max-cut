@@ -48,7 +48,7 @@ for n in range(3, 21):
 
         max_cut_value, _ = process_max_cut(G)
         rqaoa_results[seed] = (max_cut_value, losses)
-        t.join()
+        thread.join()
 
         ground_truth_max_cut_value = brute_force_results[seed]
         max_cut_value, losses = rqaoa_results[seed]
