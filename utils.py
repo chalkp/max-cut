@@ -4,20 +4,28 @@ import numpy as np
 from typing import Union, Tuple, List
 from itertools import chain, combinations
 
-# TODO: Remove cringy one-time use functions
 
-def generate_graph(
-        n: int,
-        p: float,
-        rng: np.random._generator.Generator = None) -> nx.Graph:
+def generate_graph_legacy(
+        n: int, p: float,
+        rng: np.random._generator.Generator = None,
+        seed: int = 42) -> nx.Graph:
     if rng == None:
-        rng = np.random.default_rng(42)
+        rng = np.random.default_rng(seed)
     while True:
         G = nx.gnp_random_graph(n, p, seed=rng)
         if nx.is_connected(G):
             nx.set_node_attributes(G, values=0, name='color')
             nx.set_edge_attributes(G, values=1.0, name='weight')
             return G
+
+
+def generate_graph(n: int, m: int, seed: int = 42) -> nx.Graph:
+    rng = np.random.default_rng(seed)
+    G = nx.barabasi_albert_graph(n, m, seed=rng)
+    nx.set_node_attributes(G, values=0, name='color')
+    nx.set_edge_attributes(G, values=1.0, name='weight')
+    return G
+
 
 def color_graph(
         G: nx.Graph,
@@ -30,6 +38,7 @@ def color_graph(
     nx.set_node_attributes(G, attrs, 'color')
     return G
 
+
 def mark_edges(G: nx.Graph, edges: List[Tuple[int, int]]) -> nx.Graph:
     nx.set_edge_attributes(G, False, "is_cut")
     
@@ -38,6 +47,7 @@ def mark_edges(G: nx.Graph, edges: List[Tuple[int, int]]) -> nx.Graph:
             G[u][v]["is_cut"] = True
     
     return G
+
 
 def draw_init_graph(G: nx.Graph, seed: int = 42) -> None:
     color_map = ['#8c8c8c'] * G.number_of_nodes()
@@ -51,6 +61,7 @@ def draw_init_graph(G: nx.Graph, seed: int = 42) -> None:
         edge_color=edge_color_map,
     )
     plt.show()
+
 
 def draw_graph(
         G: nx.Graph,
@@ -85,9 +96,11 @@ def draw_graph(
     )
     plt.show()
 
+
 def powerset(G: nx.Graph) -> chain:
     s = list(G.nodes())
     return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
+
 
 def brute_force(
         G: nx.Graph)-> Tuple[int, List[Tuple[int, int]], Tuple[int, ...]]:
@@ -113,6 +126,7 @@ def brute_force(
             max_subset = subset
 
     return (max_cut_value, max_cut_edges, max_subset)
+
 
 def process_max_cut(G: nx.Graph) -> Tuple[int, List[int]]:
     max_cut_value = 0

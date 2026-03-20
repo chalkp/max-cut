@@ -15,7 +15,7 @@ from utils import brute_force
 def compute_correlations(G: nx.Graph, params: List[float], layer_count, node_map, shots: int=1000):
     nodes = list(G.nodes())
     n_qubits = len(nodes)
-    
+
     qubit_source = list()
     qubit_target = list()
     edge_weights = list()
@@ -25,26 +25,26 @@ def compute_correlations(G: nx.Graph, params: List[float], layer_count, node_map
         edge_weights.append(data.get('weight', 1.0))
 
     correlations = {}
-    
+
     for u, v in G.edges():
         idx_u = node_map[u]
         idx_v = node_map[v]
-        
+
         # Z_u * Z_v
         hamil = spin.z(idx_u) * spin.z(idx_v)
-        
+
         exp_val = cudaq.observe(
             qaoa_kernel,
             hamil,
-            n_qubits, 
-            layer_count, 
-            qubit_source, 
+            n_qubits,
+            layer_count,
+            qubit_source,
             qubit_target,
             edge_weights,
             params,
             shots_count=shots
         ).expectation()
-        
+
         correlations[(u, v)] = exp_val
 
     return correlations
@@ -62,7 +62,7 @@ def contract_graph(graph: nx.Graph, u, v, correlation_sign: float):
             continue
 
         weight_v_neighbor = G_new.edges[v, neighbor]['weight']
-        
+
         effective_weight = correlation_sign * weight_v_neighbor
 
         if G_new.has_edge(u, neighbor):
@@ -102,7 +102,7 @@ def solve_rqaoa(
         params, node_map, loss = optimize_qaoa(current_graph, layer_count, shots, seed, method, maxiter)
         correlations = compute_correlations(current_graph, params, layer_count, node_map)
         losses.append((current_graph.number_of_nodes(), loss))
-        
+
         max_edge = max(correlations, key=lambda e: abs(correlations[e]))
         max_corr = correlations[max_edge]
         u, v = max_edge
@@ -112,15 +112,15 @@ def solve_rqaoa(
         elimination_history.append((u, v, max_corr, correlation_sign))
         current_graph = contract_graph(current_graph, u, v, correlation_sign)
         step += 1
-    
+
     _, _, max_subset = brute_force(current_graph)
-    
+
     max_subset = max_subset or ()
-    
+
     base_solution = {}
     for node in current_graph.nodes():
         base_solution[node] = 1 if node in max_subset else -1
-        
+
     final_solution = reconstruct_solution(base_solution, elimination_history)
 
     return final_solution, current_graph, losses

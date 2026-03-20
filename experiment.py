@@ -1,9 +1,8 @@
 import networkx as nx
-import matplotlib.pyplot as plt
 import cudaq
 import pandas as pd
 import numpy as np
-from tqdm.auto import tqdm
+import threading
 
 from utils import (
     generate_graph,
@@ -13,20 +12,29 @@ from utils import (
 from rqaoa import solve_rqaoa
 cudaq.set_target("nvidia", option='mgpu')
 
+layer_count = 1
+shots = 2000
+maxiter = 100
 data = list()
 
-for n in tqdm(range(3, 21)):
+for n in range(3, 21):
+    print("=" * 15 + f"{n}" + "=" * 15)
+    threads = list()
+    rqaoa_results = dict()
+    brute_force_results = dict()
+    
+    def run_brute_force(G, seed):
+        ground_truth_max_cut_value, _, _ = brute_force(G)
+        brute_force_results[seed] = ground_truth_max_cut_value
+    
     for seed in range(10):
         cudaq.set_random_seed(seed)
         np.random.seed(seed)
-        p = 1/2
 
-        layer_count = 1
-        shots = 2000
-        maxiter = 100
-        G = generate_graph(n, p)
+        G = generate_graph(n, (n + 1) // 2, seed)
 
-        ground_truth_max_cut_value, _, _ = brute_force(G)
+        thread = threading.Thread(target = run_brute_force, args=(G, seed))
+        threads.append(thread)
 
         final_solution, _, losses = solve_rqaoa(G, layer_count, shots=shots, seed=seed, method='COBYLA', maxiter=maxiter)
 
@@ -36,13 +44,20 @@ for n in tqdm(range(3, 21)):
             else:
                 nx.nodes(G)[node]['color'] = 0
 
-
         max_cut_value, _ = process_max_cut(G)
-        
-        data.append((n, seed, ground_truth_max_cut_value, max_cut_value, losses))
-        print("=" * 30)
-        print(f"n = {n}, seed = {seed}")
-        print(f"ground_truth = {ground_truth_max_cut_value}, ")
-        print(f"rqaoa = {max_cut_value}")
+        rqaoa_results[seed] = (max_cut_value, losses)
+    
+    for t in threads:
+        t.start()
 
-pd.DataFrame(data, columns=['n_nodes', 'seed', 'ground_truth', 'rqaoa', 'losses']).to_csv('experiment.csv', index=False)
+    for t in threads:
+        t.join()
+
+    for seed in range(10):
+        ground_truth_max_cut_value = brute_force_results[seed]
+        max_cut_value, losses = rqaoa_results[seed]
+        data.append((n, seed, ground_truth_max_cut_value, max_cut_value, losses))
+        print(f"run #{seed}: {max_cut_value} / {ground_truth_max_cut_value}")
+        print(f"performance = {max_cut_value / ground_truth_max_cut_value:.4f}")
+
+pd.DataFrame(data, columns=['n_nodes', 'seed', 'ground_truth', 'rqaoa', 'losses']).to_csv('experiment_p1.csv', index=False)
