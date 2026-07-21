@@ -1,13 +1,3 @@
-Recursive QAOA Individual Study
+Personal QAOA Research Toolkit
 ===============================
 It converges. Do not ask me how.
-
-TODO:
-    - try increasing p
-    - Adam
-    - measure smooth convergence
-        - Trust Region?
-        - Gradient Norm? (Adam)
-        - EMA?
-    - **WARM START**
-    - 2026.03.27 12:30 pm
